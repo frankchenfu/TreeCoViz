@@ -1,8 +1,8 @@
 ############# Libraries ###############
 
-import os
 import math
 import random
+import matplotlib.pyplot as plt
 from collections import Counter
 from pycirclize import Circos
 
@@ -12,7 +12,7 @@ class CommonTree():
 	class node:
 		def __init__(self) -> None:
 			self.name = None
-			self.length = 0
+			self.length = 1
 			self.children = []
 			self.fa = None
 			self.label = None
@@ -60,12 +60,17 @@ class CommonTree():
 			self.root = root
 			return root
 		
-		# can set the length by self.length if length is stressed in illustration
-		def write_newick(self, root) -> str:
-			if len(root.children) == 0:
-				return f"{root.name}"
+		def write_newick(self, root, write_length: bool) -> str:
+			if not write_length:
+				if len(root.children) == 0:
+					return f"{root.name}"
+				else:
+					return f"({','.join([self.write_newick(x, write_length) for x in root.children])}){root.name}"
 			else:
-				return f"({','.join([self.write_newick(x) for x in root.children])}){root.name}"
+				if len(root.children) == 0:
+					return f"{root.name}:{root.length}"
+				else:
+					return f"({','.join([self.write_newick(x, write_length) for x in root.children])}){root.name}:{root.length}"
 		
 		def write_vector(self, root):
 			def dfs1(root: CommonTree.node) -> None:
@@ -98,14 +103,16 @@ class CommonTree():
 			res = []
 			for i in range(1, len(self.leaves)+1):
 				res.append(dfs3(self.leaves[self.leaves_ref[i]].fa, i))
+			
 			return res
 		
 		def newick_to_vector(self, s: str):
 			tmp = self.parse_newick(s)
 			self.root = self.cmt_instance.node()
 			self.root.name = "root"
-			self.root.length = 1
+			self.root.length = 0
 			self.root.children.append(tmp)
+			self.nonleaves["root"] = self.root
 			tmp.fa = self.root
 
 			if self.cmt_instance.leaves_ord is None:
@@ -121,6 +128,8 @@ class CommonTree():
 		self.ans_cnt = 0				# Optimal answer count
 		self.ans_fa = None				# Father array of optimal answer
 		self.ans_ord = None				# Order of optimal answer
+		self.ans_t1, self.ans_t2 = None, None	# Trees of optimal answer
+		self.ans_a, self.ans_b = None, None	# Vectors of optimal answer
 		self.fa = None					# Father array in each iteration
 		self.t1, self.t2 = None, None	# Trees
 		self.a, self.b = None, None		# Vectors
@@ -202,7 +211,7 @@ class CommonTree():
 			if self.find(i+1) != i+1:
 				continue
 			par = appears_a[i+1]
-			if tmpb[par] == tmpb[i+1]:	
+			if tmpb[par] == tmpb[i+1]:
 				self.fa[i+1] = self.find(par)
 
 		for i in range(1, len(self.b)):
@@ -215,58 +224,117 @@ class CommonTree():
 		return self.fa
 
 	# Outputs
-	def plot_solution(self) -> None:
-		if not os.path.exists("CommonTree_results"):
-			os.makedirs("CommonTree_results")
-
-		def dfs(cur: CommonTree.node, color: bool = True) -> None:
-			if (cur.name in color_set) != color:
-				color = not color
-				tv.set_node_line_props([cur.name], color="red" if color else "black")
+	def plot_solution(self, write_length: bool, format: str, plt_num: int, plt_colors: list) -> None:
+		def dfs(cur: CommonTree.node, color: str) -> None:
+			for _, x in enumerate(color_set):
+				if cur.name in x:
+					if color != plt_colors[_+1]:
+						tv.set_node_line_props([cur.name], color=plt_colors[_+1])
+						color = plt_colors[_+1]
+					break
+			else:
+				if color != plt_colors[0]:
+					tv.set_node_line_props([cur.name], color=plt_colors[0])
+					color = plt_colors[0]
 			if len(cur.children) == 0:
-				if cur.name in color_set:
-					tv.set_node_label_props(cur.name, color="red")
+				for _, x in enumerate(color_set):
+					if cur.name in x:
+						tv.set_node_label_props(cur.name, color=plt_colors[_+1])
+						break
 				else:
-					tv.set_node_label_props(cur.name, color="black")
+					tv.set_node_label_props(cur.name, color=plt_colors[0])
 			else:
 				for ch in cur.children:
 					dfs(ch, color)
-		
-		color_set = set("root")
-		for i in range(0, len(self.a)):
-			if self.ans_fa[i+1] == 1:
-				for j in range(0, len(self.a[i])):
-					color_set.add(self.t1.nonleaves_ref[self.a[i][j][0]])
-				color_set.add(self.t1.leaves_ref[i+1])
-		circos, tv = Circos.initialize_from_tree(
-			tree_data=self.t1.write_newick(self.t1.root),
-			line_kws=dict(color="red", lw=2.0),
-			align_line_kws=dict(ls="dashdot", lw=0.5),
-			r_lim=(10, 100),
-			ladderize=True
-		)
-		dfs(self.t1.root)
-		fig = circos.plotfig(figsize=(10, 10))
-		fig.savefig("CommonTree_results/result1.png", dpi=60)
 
-		color_set = set("root")
-		for i in range(0, len(self.b)):
-			if self.ans_fa[i+1] == 1:
-				for j in range(0, len(self.b[i])):
-					color_set.add(self.t2.nonleaves_ref[self.b[i][j][0]])
-				color_set.add(self.t2.leaves_ref[i+1])
+		def dfs2(root: CommonTree.node, cur: CommonTree.node, color: int) -> None:
+			for ch in cur.children:
+				if ch.name in color_set[color]:
+					root.children.append(self.node())
+					root.children[-1].name = ch.name
+					root.children[-1].length = ch.length
+					dfs2(root.children[-1], ch, color)
+		
+		n = len(self.ans_fa)
+		label_size = 20 if n <= 10 else \
+					 14 if n <= 40 else \
+					 12 if n <= 80 else \
+					 11 if n <= 120 else \
+					 10	if n <= 200 else \
+					 8	if n <= 300 else \
+					 7	if n <= 500 else 6
+		largest = Counter(self.ans_fa[1:]).most_common(plt_num)
+		largest_ = [x[1] for x in largest]
+		largest = [x[0] for x in largest]
+		color_set = [set() for _ in range(plt_num)]
+		for i in range(0, len(self.ans_a)):
+			for _, k in enumerate(largest):
+				if self.ans_fa[i+1] == k:
+					for j in range(0, len(self.ans_a[i])):
+						color_set[_].add(self.ans_t1.nonleaves_ref[self.ans_a[i][j][0]])
+					color_set[_].add(self.ans_t1.leaves_ref[i+1])
+					break
 		circos, tv = Circos.initialize_from_tree(
-			tree_data=self.t2.write_newick(self.t2.root),
-			line_kws=dict(color="red", lw=2.0),
+			tree_data=self.ans_t1.write_newick(self.ans_t1.root, write_length),
+			line_kws=dict(color=plt_colors[0], lw=2.0),
 			align_line_kws=dict(ls="dashdot", lw=0.5),
 			r_lim=(10, 100),
+			leaf_label_size=label_size,
 			ladderize=True
 		)
-		dfs(self.t2.root)
+		dfs(self.ans_t1.root, plt_colors[0])
 		fig = circos.plotfig(figsize=(10, 10))
-		fig.savefig("CommonTree_results/result2.png", dpi=60)
+		fig.savefig(f"CommonTree_results/result1.{format}", format=format, dpi=60)
+
+		color_set = [set() for _ in range(plt_num)]
+		for i in range(0, len(self.ans_b)):
+			for _, k in enumerate(largest):
+				if self.ans_fa[i+1] == k:
+					for j in range(0, len(self.ans_b[i])):
+						color_set[_].add(self.ans_t2.nonleaves_ref[self.ans_b[i][j][0]])
+					color_set[_].add(self.ans_t2.leaves_ref[i+1])
+					break
+		circos, tv = Circos.initialize_from_tree(
+			tree_data=self.ans_t2.write_newick(self.ans_t2.root, write_length),
+			line_kws=dict(color=plt_colors[0], lw=2.0),
+			align_line_kws=dict(ls="dashdot", lw=0.5),
+			r_lim=(10, 100),
+			leaf_label_size=label_size,
+			ladderize=True
+		)
+		dfs(self.ans_t2.root, plt_colors[0])
+		fig = circos.plotfig(figsize=(10, 10))
+		fig.savefig(f"CommonTree_results/result2.{format}", format=format, dpi=60)
+
+		self.ans_t3 = [self.tree(self) for _ in range(plt_num)]
+		for i in range(plt_num):
+			self.ans_t3[i].root = self.node()
+			self.ans_t3[i].root.name = "root"
+			self.ans_t3[i].root.length = 0
+			dfs2(self.ans_t3[i].root, self.ans_t2.nonleaves[self.ans_t2.nonleaves_ref[largest[i]]], i)
+		
+		self.ans_t3 = [self.ans_t3[i].write_newick(self.ans_t3[i].root, write_length) for i in range(plt_num)]
+		sectors = {f"Tree{i+1}": largest_[i] for i in range(plt_num)}
+		circos = Circos(sectors, space=5)
+		for _, sector in enumerate(circos.sectors):
+			sector.text(f"{sector.name} ({sector.size})", r=110)
+			track = sector.add_track((10, 100))
+			track.tree(tree_data=self.ans_t3[_],
+				line_kws=dict(lw=2.0),
+				align_line_kws=dict(ls="dashdot", lw=0.5),
+				leaf_label_size=label_size+1,
+				ladderize=True
+			).set_node_line_props("root", color=plt_colors[_+1], apply_label_color=True)
+		fig = circos.plotfig(figsize=(10, 10))
+		fig.savefig(f"CommonTree_results/result3.{format}", format=format, dpi=60)
+
+		plt.close("all")
 
 	def main(self, s1: str, s2: str,
+			write_length: bool = False,
+			format: str = "svg",
+			plt_num: int = 1,
+			plt_colors: list = ["black", "red"],
 			T_start: float = 1.,
 			T_end: float = 1e-3,
 			cooling_rate: float = 0.99,
@@ -280,9 +348,12 @@ class CommonTree():
 		
 		# Initial run
 		self.ans_fa = self.run(s1, s2)
-		self.ans_cnt = Counter(self.ans_fa).most_common(1)[0][1]
+		self.ans_cnt = Counter(self.ans_fa).most_common(plt_num)
+		plt_num = len(self.ans_cnt)
+		self.ans_cnt = self.ans_cnt[0][1]
 		self.ans_ord = self.leaves_ord
-		# print(f"Initial answer count: {self.ans_cnt}")
+		self.ans_t1, self.ans_t2 = self.t1, self.t2
+		self.ans_a, self.ans_b = self.a, self.b
 
 		# Run simulated annealing
 		T = T_start
@@ -296,28 +367,23 @@ class CommonTree():
 
 			# run
 			res_fa = self.run(s1, s2)
-			cnt = Counter(res_fa).most_common(1)[0][1]
+			cnt = Counter(res_fa).most_common(plt_num)[0][1]
 			if cnt > self.ans_cnt or random.random() < math.exp((cnt - self.ans_cnt) / T):
-				# if cnt <= ans_cnt:
-				# 	print(f"Accepting worse answer count with threshold {math.exp((cnt - ans_cnt) / T)}")
 				self.ans_cnt = cnt
 				self.ans_fa = res_fa
 				self.ans_ord = self.leaves_ord
-				# print(f"Current answer count: {self.ans_cnt}")
+				self.ans_t1, self.ans_t2 = self.t1, self.t2
+				self.ans_a, self.ans_b = self.a, self.b
 			
 			# cooling
 			T *= cooling_rate
 			if T < T_end:
 				break
-		
-		# Output
-		# print(f"Optimal answer count: {self.ans_cnt}")
-		# print(f"Optimal answer father: {self.ans_fa}")
 
 		# plot
-		self.plot_solution()
+		self.plot_solution(write_length, format, plt_num, plt_colors)
 
-		return self.ans_cnt
+		return self.ans_cnt, len(self.ans_fa)
 
 if __name__ == "__main__":
 	s1 = "((((((1,3),((4,7),(((8,9),(19,20)),(((10,11),(21,77)),(((12,16),(15,25)),(((((((((22,75),(((43,(45,74)),63),(((46,55),(48,(50,(52,((71,84),(((76,78),((80,82),83)),79)))))),47))),((((44,(65,(68,(69,81)))),61),73),59)),((39,72),((41,(60,62)),(42,((((49,67),70),(56,64)),58))))),(36,37)),(38,(40,(51,53)))),(28,30)),(26,31)),((23,57),54))))))),(2,66)),6),35),((5,17),(((((13,29),(32,34)),85),86),((14,(27,33)),(18,24)))))"
