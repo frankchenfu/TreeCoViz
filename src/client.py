@@ -31,12 +31,12 @@ def compare(newick, plot_options, plot_colors, simulated_annealing):
 	for _, slider in enumerate(sliders):
 		if slider.validation(simulated_annealing[_]) is not None:
 			return -1, -1
-	# try:
-	tmp = CommonTree().main(*newick, *plot_options, plot_colors, *simulated_annealing)
-	return tmp
-	# except Exception as e:
-	# 	print(e)
-	# 	return -1, -1
+	try:
+		tmp = CommonTree().main(*newick, *plot_options, plot_colors, *simulated_annealing)
+		return tmp
+	except Exception as e:
+		# print(e)
+		return -1, -1
 
 async def execute_compare():
 	cmp_btn.set_enabled(False)
