@@ -15,6 +15,7 @@ answer = None
 newick = [None, None]
 plot_options = [False, "svg", 1]
 plot_colors = ["#000000", "#f55f5f", "#5fa0f5", "#f5af5f", "#f55feb", "#4ccf55"]
+fig_options = [10, 10, 60]
 simulated_annealing = [1., 1e-3, 0.99, 300]
 
 def validate(x, typ, vmin=None, vmax=None):
@@ -30,27 +31,28 @@ def validate(x, typ, vmin=None, vmax=None):
 		return f"Value must be <= {vmax}"
 	return None
 
-def compare(newick, plot_options, plot_colors, simulated_annealing):
+def compare(newick, plot_options, fig_options, plot_colors, simulated_annealing):
 	for _, slider in enumerate(sliders):
-		if slider.validation(simulated_annealing[_]) is not None:
+		if slider.validation(fig_options[_] if _ < 3 else simulated_annealing[_ - 3]) is not None:
 			return -1, -1
 	try:
-		tmp = CommonTree().main(*newick, *plot_options, plot_colors, *simulated_annealing)
+		tmp = CommonTree().main(*newick, *plot_options, *fig_options, plot_colors, *simulated_annealing)
 		return tmp
 	except Exception as e:
-		print(e)
+		# print(e)
 		return -1, -1
 
 async def execute_compare():
 	cmp_btn.set_enabled(False)
 	set_btn.set_enabled(False)
-	res, n = await run.cpu_bound(compare, newick, plot_options, plot_colors, simulated_annealing)
+	res, n = await run.cpu_bound(compare, newick, plot_options, fig_options, plot_colors, simulated_annealing)
 	if res == -1:
 		warnings.set_visibility(False)
 		errors.set_visibility(True)
 		results_card.set_visibility(False)
 	else:
 		warnings.set_visibility(n > 400)
+		# print(n)
 		errors.set_visibility(False)
 		results_card.set_visibility(True)
 		answer.set_content(f"<p>The largest common tree consists of <span style='color: red;'>{res}</span> node{'s' if res > 1 else ''}.</p>")
@@ -72,8 +74,8 @@ with ui.row():
 	with inputs_card:
 		ui.markdown("### Inputs & Parameters")
 		
-		ui.textarea(label="The first tree", placeholder="(newick representation)", on_change=lambda x: newick.__setitem__(0, str(x.value).strip())).props("clearable").style("width: 400px; height: 180px")
-		ui.textarea(label="The second tree", placeholder="(newick representation)", on_change=lambda x: newick.__setitem__(1, str(x.value).strip())).props("clearable").style("width: 400px; height: 180px")
+		ui.textarea(label="The first tree", placeholder="(newick representation)", on_change=lambda x: newick.__setitem__(0, x.value.strip() if x.value else None)).props("clearable").style("width: 400px; height: 180px")
+		ui.textarea(label="The second tree", placeholder="(newick representation)", on_change=lambda x: newick.__setitem__(1, x.value.strip() if x.value else None)).props("clearable").style("width: 400px; height: 180px")
 		
 		with ui.row():
 			cmp_btn = ui.button("Compare", icon="navigation", on_click=execute_compare)
@@ -84,7 +86,7 @@ with ui.row():
 		
 		errors = ui.label("Error! Check the inputs or parameters").style("color: red;")
 		errors.set_visibility(False)
-		warnings = ui.html("<p>The tree is large and the visualization may be affected.</p><p>Also consider to increase the brightness of <i>base color</i> to get better results.</p>").style("color: orange;")
+		warnings = ui.html("<p>The tree is large. Set the figure size or dpi if needed.</p><p>Also consider to increase the brightness of <i>base color</i>.</p>").style("color: orange;")
 		warnings.set_visibility(False)
 
 		settings_pt = ui.column().style("width: 490px; overflow: auto;")
@@ -97,26 +99,30 @@ with ui.row():
 				show_plotcolors = ui.switch("Change plot palette", value=False, on_change=lambda x: [show_plotoptions.set_value(False), show_plotcolors.set_value(x.value)])
 			with ui.row(align_items="baseline").bind_visibility_from(show_plotoptions, "value"):
 				ui.label("Highlight the largest")
-				ui.select(options=[1, 2, 3, 4, 5], value=1, on_change=lambda x: plot_options.__setitem__(2, int(x.value)))
+				ui.select(options=[1, 2, 3, 4, 5], value=1, on_change=lambda x: plot_options.__setitem__(2, x.value))
 				ui.label("subtree(s) in the plot.")
 			with ui.row(align_items="center").bind_visibility_from(show_plotoptions, "value"):
-				ui.checkbox("Weighted edges", value=False, on_change=lambda x: plot_options.__setitem__(0, bool(x.value)))
+				ui.checkbox("Weighted edges", value=False, on_change=lambda x: plot_options.__setitem__(0, x.value))
 				ui.space()
 				with ui.row(align_items="baseline"):
 					ui.label("Plot format: ")
-					ui.select(options=["svg", "png", "jpg"], value="svg", on_change=lambda x: plot_options.__setitem__(1, str(x.value)))
+					ui.select(options=["svg", "png", "jpg"], value="svg", on_change=lambda x: plot_options.__setitem__(1, x.value))
+			with ui.row(align_items="center").bind_visibility_from(show_plotoptions, "value"):
+				sliders.append(ui.number(label="Figure width", value=10, format="%d", validation=lambda x: validate(x, "int", vmin=1), on_change=lambda x: fig_options.__setitem__(0, int(x.value) if x.value else None)).style("width: 120px"))
+				sliders.append(ui.number(label="Figure height", value=10, format="%d", validation=lambda x: validate(x, "int", vmin=1), on_change=lambda x: fig_options.__setitem__(1, int(x.value) if x.value else None)).style("width: 120px"))
+				sliders.append(ui.number(label="DPI", value=60, format="%d", validation=lambda x: validate(x, "int", vmin=1), on_change=lambda x: fig_options.__setitem__(2, int(x.value) if x.value else None)).style("width: 120px"))
 			with ui.row().bind_visibility_from(show_plotcolors, "value"):
-				ui.color_input(label="Base color", value="#000000", preview=True, on_change=lambda x: plot_colors.__setitem__(0, str(x.value)))
-				ui.color_input(label="Color 1", value="#f55f5f", preview=True, on_change=lambda x: plot_colors.__setitem__(1, str(x.value)))
-				ui.color_input(label="Color 2", value="#5fa0f5", preview=True, on_change=lambda x: plot_colors.__setitem__(2, str(x.value)))
-				ui.color_input(label="Color 3", value="#f5af5f", preview=True, on_change=lambda x: plot_colors.__setitem__(3, str(x.value)))
-				ui.color_input(label="Color 4", value="#f55feb", preview=True, on_change=lambda x: plot_colors.__setitem__(4, str(x.value)))
-				ui.color_input(label="Color 5", value="#4ccf55", preview=True, on_change=lambda x: plot_colors.__setitem__(5, str(x.value)))
+				ui.color_input(label="Base color", value="#000000", preview=True, on_change=lambda x: plot_colors.__setitem__(0, x.value))
+				ui.color_input(label="Color 1", value="#f55f5f", preview=True, on_change=lambda x: plot_colors.__setitem__(1, x.value))
+				ui.color_input(label="Color 2", value="#5fa0f5", preview=True, on_change=lambda x: plot_colors.__setitem__(2, x.value))
+				ui.color_input(label="Color 3", value="#f5af5f", preview=True, on_change=lambda x: plot_colors.__setitem__(3, x.value))
+				ui.color_input(label="Color 4", value="#f55feb", preview=True, on_change=lambda x: plot_colors.__setitem__(4, x.value))
+				ui.color_input(label="Color 5", value="#4ccf55", preview=True, on_change=lambda x: plot_colors.__setitem__(5, x.value))
 		with settings_sa:
-			sliders.append(ui.number(label="Temperature - Start", value=1., format="%.4f", precision=4, step=1e-3, validation=lambda x: validate(x, "float", 0, 5), on_change=lambda x: simulated_annealing.__setitem__(0, float(x.value))))
-			sliders.append(ui.number(label="Temperature - End", value=1e-3, format="%.4f", precision=4, step=1e-3, validation=lambda x: validate(x, "float", 0, 5), on_change=lambda x: simulated_annealing.__setitem__(1, float(x.value))))
-			sliders.append(ui.number(label="Cooling Rate", value=0.99, format="%.4f", precision=4, step=1e-3, validation=lambda x: validate(x, "float", 0.5, 1), on_change=lambda x: simulated_annealing.__setitem__(2, float(x.value))))
-			sliders.append(ui.number(label="Max Iterations", value=300, format="%d", validation=lambda x: validate(x, "int", vmin=20), on_change=lambda x: simulated_annealing.__setitem__(3, int(x.value))))
+			sliders.append(ui.number(label="Temperature - Start", value=1., format="%.4f", precision=4, step=1e-3, validation=lambda x: validate(x, "float", 0, 5), on_change=lambda x: simulated_annealing.__setitem__(0, x.value)))
+			sliders.append(ui.number(label="Temperature - End", value=1e-3, format="%.4f", precision=4, step=1e-3, validation=lambda x: validate(x, "float", 0, 5), on_change=lambda x: simulated_annealing.__setitem__(1, x.value)))
+			sliders.append(ui.number(label="Cooling Rate", value=0.99, format="%.4f", precision=4, step=1e-3, validation=lambda x: validate(x, "float", 0.5, 1), on_change=lambda x: simulated_annealing.__setitem__(2, x.value)))
+			sliders.append(ui.number(label="Max Iterations", value=300, format="%d", validation=lambda x: validate(x, "int", vmin=20), on_change=lambda x: simulated_annealing.__setitem__(3, int(x.value) if x.value else None)))
 
 	with results_card:
 		with ui.row(align_items="end"):

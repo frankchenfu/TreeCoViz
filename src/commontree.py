@@ -224,7 +224,7 @@ class CommonTree():
 		return self.fa
 
 	# Outputs
-	def plot_solution(self, write_length: bool, format: str, plt_num: int, plt_colors: list) -> None:
+	def plot_solution(self, write_length: bool, format: str, plt_num: int, fig_height: int, fig_width: int, fig_dpi: int, plt_colors: list) -> None:
 		def dfs(cur: CommonTree.node, color: str) -> None:
 			for _, x in enumerate(color_set):
 				if cur.name in x:
@@ -283,8 +283,8 @@ class CommonTree():
 			ladderize=True
 		)
 		dfs(self.ans_t1.root, plt_colors[0])
-		fig = circos.plotfig(figsize=(10, 10))
-		fig.savefig(f"CommonTree_results/result1.{format}", format=format, dpi=60)
+		fig = circos.plotfig(figsize=(fig_height, fig_width))
+		fig.savefig(f"CommonTree_results/result1.{format}", format=format, dpi=fig_dpi)
 
 		color_set = [set() for _ in range(plt_num)]
 		for i in range(0, len(self.ans_b)):
@@ -303,8 +303,8 @@ class CommonTree():
 			ladderize=True
 		)
 		dfs(self.ans_t2.root, plt_colors[0])
-		fig = circos.plotfig(figsize=(10, 10))
-		fig.savefig(f"CommonTree_results/result2.{format}", format=format, dpi=60)
+		fig = circos.plotfig(figsize=(fig_height, fig_width))
+		fig.savefig(f"CommonTree_results/result2.{format}", format=format, dpi=fig_dpi)
 
 		self.ans_t3 = [self.tree(self) for _ in range(plt_num)]
 		for i in range(plt_num):
@@ -325,8 +325,8 @@ class CommonTree():
 				leaf_label_size=label_size+1,
 				ladderize=True
 			).set_node_line_props("root", color=plt_colors[_+1], apply_label_color=True)
-		fig = circos.plotfig(figsize=(10, 10))
-		fig.savefig(f"CommonTree_results/result3.{format}", format=format, dpi=60)
+		fig = circos.plotfig(figsize=(fig_height, fig_width))
+		fig.savefig(f"CommonTree_results/result3.{format}", format=format, dpi=fig_dpi)
 
 		plt.close("all")
 
@@ -334,6 +334,9 @@ class CommonTree():
 			write_length: bool = False,
 			format: str = "svg",
 			plt_num: int = 1,
+			fig_height: int = 10,
+			fig_width: int = 10,
+			fig_dpi: int = 60,
 			plt_colors: list = ["black", "red"],
 			T_start: float = 1.,
 			T_end: float = 1e-3,
@@ -347,13 +350,15 @@ class CommonTree():
 			s2 = s2[:-1]
 		
 		# Initial run
-		self.ans_fa = self.run(s1, s2)
-		self.ans_cnt = Counter(self.ans_fa).most_common(plt_num)
-		plt_num = len(self.ans_cnt)
-		self.ans_cnt = self.ans_cnt[0][1]
-		self.ans_ord = self.leaves_ord
+		ans_fa = self.run(s1, s2)
+		ans_cnt = Counter(ans_fa[1:]).most_common(plt_num)
+		plt_num = len(ans_cnt)
+		self.ans_cnt = [x[1] for x in ans_cnt]
+		self.ans_fa = ans_fa.copy()
+		self.ans_ord = self.leaves_ord.copy()
 		self.ans_t1, self.ans_t2 = self.t1, self.t2
 		self.ans_a, self.ans_b = self.a, self.b
+		ans_cnt = ans_cnt[0][1]
 
 		# Run simulated annealing
 		T = T_start
@@ -367,13 +372,22 @@ class CommonTree():
 
 			# run
 			res_fa = self.run(s1, s2)
-			cnt = Counter(res_fa).most_common(plt_num)[0][1]
-			if cnt > self.ans_cnt or random.random() < math.exp((cnt - self.ans_cnt) / T):
-				self.ans_cnt = cnt
-				self.ans_fa = res_fa
-				self.ans_ord = self.leaves_ord
-				self.ans_t1, self.ans_t2 = self.t1, self.t2
-				self.ans_a, self.ans_b = self.a, self.b
+			cnt = Counter(res_fa[1:]).most_common(plt_num)
+			if cnt[0][1] > ans_cnt or random.random() < math.exp((cnt[0][1] - ans_cnt) / T):
+				ans_cnt = cnt[0][1]
+				ans_fa = res_fa
+
+				better = False
+				for _ in range(0, plt_num):
+					if cnt[_][1] != self.ans_cnt[_]:
+						better = cnt[_][1] > self.ans_cnt[_]
+						break
+				if better:
+					self.ans_cnt = [x[1] for x in cnt]
+					self.ans_fa = res_fa.copy()
+					self.ans_ord = self.leaves_ord.copy()
+					self.ans_t1, self.ans_t2 = self.t1, self.t2
+					self.ans_a, self.ans_b = self.a, self.b
 			
 			# cooling
 			T *= cooling_rate
@@ -381,9 +395,9 @@ class CommonTree():
 				break
 
 		# plot
-		self.plot_solution(write_length, format, plt_num, plt_colors)
+		self.plot_solution(write_length, format, plt_num, fig_height, fig_width, fig_dpi, plt_colors)
 
-		return self.ans_cnt, len(self.ans_fa)
+		return self.ans_cnt[0], len(self.ans_fa) - 1
 
 if __name__ == "__main__":
 	s1 = "((((((1,3),((4,7),(((8,9),(19,20)),(((10,11),(21,77)),(((12,16),(15,25)),(((((((((22,75),(((43,(45,74)),63),(((46,55),(48,(50,(52,((71,84),(((76,78),((80,82),83)),79)))))),47))),((((44,(65,(68,(69,81)))),61),73),59)),((39,72),((41,(60,62)),(42,((((49,67),70),(56,64)),58))))),(36,37)),(38,(40,(51,53)))),(28,30)),(26,31)),((23,57),54))))))),(2,66)),6),35),((5,17),(((((13,29),(32,34)),85),86),((14,(27,33)),(18,24)))))"
