@@ -182,8 +182,11 @@ class CommonTree():
 					appears_b[y] = i+1
 
 		ans = []
+		hop = len(self.a) - 1
 		for p, q in zip(self.a, self.b):
-			ans.append(self.lcs_outer(p, q)[0])
+			x, y = self.lcs_outer(p, q)
+			ans.append(x)
+			hop -= y
 
 		tmpa = [0 for _ in range(len(self.a)+1)]
 		tmpb = [0 for _ in range(len(self.b)+1)]
@@ -221,7 +224,7 @@ class CommonTree():
 			if tmpa[par] == tmpa[i+1]:
 				self.fa[i+1] = self.find(par)
 		
-		return self.fa
+		return self.fa, hop
 
 	# Outputs
 	def plot_solution(self, write_length: bool, format: str, plt_num: int, fig_height: int, fig_width: int, fig_dpi: int, plt_colors: list) -> None:
@@ -341,7 +344,7 @@ class CommonTree():
 			T_start: float = 1.,
 			T_end: float = 1e-3,
 			cooling_rate: float = 0.99,
-			max_iter: int = 300) -> int:
+			max_iter: int = 300):
 		
 		# Initialize
 		if s1[-1] == ";":
@@ -350,32 +353,37 @@ class CommonTree():
 			s2 = s2[:-1]
 		
 		# Initial run
-		ans_fa = self.run(s1, s2)
+		ans_fa, ans_hop = self.run(s1, s2)
 		ans_cnt = Counter(ans_fa[1:]).most_common(plt_num)
 		plt_num = len(ans_cnt)
+		ans_ord = self.leaves_ord
 		self.ans_cnt = [x[1] for x in ans_cnt]
 		self.ans_fa = ans_fa.copy()
+		self.ans_hop = ans_hop
 		self.ans_ord = self.leaves_ord.copy()
 		self.ans_t1, self.ans_t2 = self.t1, self.t2
 		self.ans_a, self.ans_b = self.a, self.b
+
 		ans_cnt = ans_cnt[0][1]
 
 		# Run simulated annealing
 		T = T_start
 		for _ in range(max_iter):
 			# make minor change: swap some pairs of leaves
-			self.leaves_ord = self.ans_ord.copy()
+			self.leaves_ord = ans_ord.copy()
 			for _ in range(max(int(T*math.log(len(self.leaves_ord), 1.5)), 2)):
 				x = random.randint(0, len(self.leaves_ord)-1)
 				y = random.randint(0, len(self.leaves_ord)-1)
 				self.leaves_ord[x], self.leaves_ord[y] = self.leaves_ord[y], self.leaves_ord[x]
 
 			# run
-			res_fa = self.run(s1, s2)
+			res_fa, res_hop = self.run(s1, s2)
 			cnt = Counter(res_fa[1:]).most_common(plt_num)
+			plt_num = len(cnt)
 			if cnt[0][1] > ans_cnt or random.random() < math.exp((cnt[0][1] - ans_cnt) / T):
 				ans_cnt = cnt[0][1]
-				ans_fa = res_fa
+				ans_fa, ans_hop = res_fa, res_hop
+				ans_ord = self.leaves_ord
 
 				better = False
 				for _ in range(0, plt_num):
@@ -385,6 +393,7 @@ class CommonTree():
 				if better:
 					self.ans_cnt = [x[1] for x in cnt]
 					self.ans_fa = res_fa.copy()
+					self.ans_hop = res_hop
 					self.ans_ord = self.leaves_ord.copy()
 					self.ans_t1, self.ans_t2 = self.t1, self.t2
 					self.ans_a, self.ans_b = self.a, self.b
@@ -396,8 +405,8 @@ class CommonTree():
 
 		# plot
 		self.plot_solution(write_length, format, plt_num, fig_height, fig_width, fig_dpi, plt_colors)
-
-		return self.ans_cnt[0], len(self.ans_fa) - 1
+		
+		return self.ans_cnt[0], len(self.ans_fa) - 1, self.ans_hop
 
 if __name__ == "__main__":
 	s1 = "((((((1,3),((4,7),(((8,9),(19,20)),(((10,11),(21,77)),(((12,16),(15,25)),(((((((((22,75),(((43,(45,74)),63),(((46,55),(48,(50,(52,((71,84),(((76,78),((80,82),83)),79)))))),47))),((((44,(65,(68,(69,81)))),61),73),59)),((39,72),((41,(60,62)),(42,((((49,67),70),(56,64)),58))))),(36,37)),(38,(40,(51,53)))),(28,30)),(26,31)),((23,57),54))))))),(2,66)),6),35),((5,17),(((((13,29),(32,34)),85),86),((14,(27,33)),(18,24)))))"
@@ -406,5 +415,7 @@ if __name__ == "__main__":
 	# s2 = "(((1,3,4,5),2),6)"
 	# s1 = "((apple:1,banana:1,cat:1)dog:1,(egg:1,fox:1)god:1)horse:1"
 	# s2 = "((apple:1,banana:1,egg:1)dog:1,cat:1,fox:1)horse:1"
+	s1 = "(((a,(b,c)),d),(e,(f,(g,h))),(i,j))"
+	s2 = "((j,h),i,((e,(f,g)),((d,(b,c)),a)))"
 	cmt = CommonTree()
 	cmt.main(s1=s1, s2=s2)

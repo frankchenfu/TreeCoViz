@@ -34,18 +34,18 @@ def validate(x, typ, vmin=None, vmax=None):
 def compare(newick, plot_options, fig_options, plot_colors, simulated_annealing):
 	for _, slider in enumerate(sliders):
 		if slider.validation(fig_options[_] if _ < 3 else simulated_annealing[_ - 3]) is not None:
-			return -1, -1
+			return -1, -1, -1
 	try:
 		tmp = CommonTree().main(*newick, *plot_options, *fig_options, plot_colors, *simulated_annealing)
 		return tmp
 	except Exception as e:
 		# print(e)
-		return -1, -1
+		return -1, -1, -1
 
 async def execute_compare():
 	cmp_btn.set_enabled(False)
 	set_btn.set_enabled(False)
-	res, n = await run.cpu_bound(compare, newick, plot_options, fig_options, plot_colors, simulated_annealing)
+	res, n, hop = await run.cpu_bound(compare, newick, plot_options, fig_options, plot_colors, simulated_annealing)
 	if res == -1:
 		warnings.set_visibility(False)
 		errors.set_visibility(True)
@@ -55,7 +55,7 @@ async def execute_compare():
 		# print(n)
 		errors.set_visibility(False)
 		results_card.set_visibility(True)
-		answer.set_content(f"<p>The largest common tree consists of <span style='color: red;'>{res}</span> node{'s' if res > 1 else ''}.</p>")
+		answer.set_content(f"<p>The largest common tree consists of <span style='color: red;'>{res}</span> node{'s' if res > 1 else ''}; the HOP distance is <span style='color: red;'>{hop}</span>.</p>")
 		img1.set_source(f"CommonTree_results/result1.{plot_options[1]}")
 		img2.set_source(f"CommonTree_results/result2.{plot_options[1]}")
 		img3.set_source(f"CommonTree_results/result3.{plot_options[1]}")
