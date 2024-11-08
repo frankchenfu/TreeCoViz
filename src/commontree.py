@@ -182,11 +182,9 @@ class CommonTree():
 					appears_b[y] = i+1
 
 		ans = []
-		hop = len(self.a) - 1
 		for p, q in zip(self.a, self.b):
 			x, y = self.lcs_outer(p, q)
 			ans.append(x)
-			hop -= y
 
 		tmpa = [0 for _ in range(len(self.a)+1)]
 		tmpb = [0 for _ in range(len(self.b)+1)]
@@ -223,6 +221,11 @@ class CommonTree():
 			par = appears_b[i+1]
 			if tmpa[par] == tmpa[i+1]:
 				self.fa[i+1] = self.find(par)
+		
+		hop = 0
+		for i in range(1, len(self.a)):
+			if self.find(i+1) == i+1:
+				hop += 1
 		
 		return self.fa, hop
 
