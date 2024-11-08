@@ -290,7 +290,7 @@ class CommonTree():
 		)
 		dfs(self.ans_t1.root, plt_colors[0])
 		fig = circos.plotfig(figsize=(fig_height, fig_width))
-		fig.savefig(f"CommonTree_results/result1.{format}", format=format, dpi=fig_dpi)
+		fig.savefig(f"TreeCoViz_results/result1.{format}", format=format, dpi=fig_dpi)
 
 		color_set = [set() for _ in range(plt_num)]
 		for i in range(0, len(self.ans_b)):
@@ -310,7 +310,7 @@ class CommonTree():
 		)
 		dfs(self.ans_t2.root, plt_colors[0])
 		fig = circos.plotfig(figsize=(fig_height, fig_width))
-		fig.savefig(f"CommonTree_results/result2.{format}", format=format, dpi=fig_dpi)
+		fig.savefig(f"TreeCoViz_results/result2.{format}", format=format, dpi=fig_dpi)
 
 		self.ans_t3 = [self.tree(self) for _ in range(plt_num)]
 		for i in range(plt_num):
@@ -332,7 +332,7 @@ class CommonTree():
 				ladderize=True
 			).set_node_line_props("root", color=plt_colors[_+1], apply_label_color=True)
 		fig = circos.plotfig(figsize=(fig_height, fig_width))
-		fig.savefig(f"CommonTree_results/result3.{format}", format=format, dpi=fig_dpi)
+		fig.savefig(f"TreeCoViz_results/result3.{format}", format=format, dpi=fig_dpi)
 
 		plt.close("all")
 

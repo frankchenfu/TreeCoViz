@@ -56,9 +56,9 @@ async def execute_compare():
 		errors.set_visibility(False)
 		results_card.set_visibility(True)
 		answer.set_content(f"<p>The largest common tree consists of <span style='color: red;'>{res}</span> node{'s' if res > 1 else ''}; the HOP distance is <span style='color: red;'>{hop}</span>.</p>")
-		img1.set_source(f"CommonTree_results/result1.{plot_options[1]}")
-		img2.set_source(f"CommonTree_results/result2.{plot_options[1]}")
-		img3.set_source(f"CommonTree_results/result3.{plot_options[1]}")
+		img1.set_source(f"TreeCoViz_results/result1.{plot_options[1]}")
+		img2.set_source(f"TreeCoViz_results/result2.{plot_options[1]}")
+		img3.set_source(f"TreeCoViz_results/result3.{plot_options[1]}")
 		img1.force_reload()
 		img2.force_reload()
 		img3.force_reload()
@@ -128,12 +128,12 @@ with ui.row():
 		with ui.row(align_items="end"):
 			ui.markdown("### Results")
 			ui.space()
-			ui.html("<p>Common part of the two trees are highlighted.</p><p>Results are saved to <code>./CommonTree_results/</code>.</p><p>Click to save the images elsewhere.</p>")
+			ui.html("<p>Common part of the two trees are highlighted.</p><p>Results are saved to <code>./TreeCoViz_results/</code>.</p><p>Click to save the images elsewhere.</p>")
 			ui.space()
 			with ui.dropdown_button(icon="download", auto_close=True):
-				ui.item("First Tree", on_click=lambda: ui.download(f"CommonTree_results/result1.{plot_options[1]}"))
-				ui.item("Second Tree", on_click=lambda: ui.download(f"CommonTree_results/result2.{plot_options[1]}"))
-				ui.item("Common Forest", on_click=lambda: ui.download(f"CommonTree_results/result3.{plot_options[1]}"))
+				ui.item("First Tree", on_click=lambda: ui.download(f"TreeCoViz_results/result1.{plot_options[1]}"))
+				ui.item("Second Tree", on_click=lambda: ui.download(f"TreeCoViz_results/result2.{plot_options[1]}"))
+				ui.item("Common Forest", on_click=lambda: ui.download(f"TreeCoViz_results/result3.{plot_options[1]}"))
 		answer = ui.html("<p>The largest common tree is not calculated.</p>")
 		with ui.tabs().classes("w-full") as tabs:
 			t1 = ui.tab("First tree")
@@ -147,7 +147,7 @@ with ui.row():
 			with ui.tab_panel(t3):
 				img3 = ui.image(nil_img)
 
-if os.path.exists("CommonTree_results"):
-	shutil.rmtree("CommonTree_results")
-os.makedirs("CommonTree_results")
-ui.run(title="Common Tree", native=True, window_size=(1300, 900), fullscreen=False, reload=False)
+if os.path.exists("TreeCoViz_results"):
+	shutil.rmtree("TreeCoViz_results")
+os.makedirs("TreeCoViz_results")
+ui.run(title="TreeCoViz", native=True, window_size=(1300, 900), fullscreen=False, reload=False)
