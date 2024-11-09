@@ -54,11 +54,11 @@ class CommonTree():
 				root.name = f"i{self.inc}"
 			if len(root.children) == 0:
 				self.leaves[root.name] = root
-			else:
+			elif len(root.children) > 1:
 				self.nonleaves[root.name] = root
 			
 			self.root = root
-			return root
+			return root if len(root.children) != 1 else root.children[0]
 		
 		def write_newick(self, root, write_length: bool) -> str:
 			if not write_length:
